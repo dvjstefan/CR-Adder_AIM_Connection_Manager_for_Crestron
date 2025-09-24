@@ -1,6 +1,7 @@
 # Adder AIM Connection Manager for Crestron
 
 This project contains two Crestron SIMPL+ modules and a SimplSharp library designed to manage connections between Adder RX (receivers) and TX (transmitters) using the Adder AIM API. The solution supports connecting and disconnecting rooms (RX devices) to/from sources (TX devices), retrieving device lists, and channel management.
+
 This module require Series 4 Processor.
 
 ---
