@@ -1,0 +1,232 @@
+/*******************************************************************************************
+  SIMPL+ Module Information
+  (Fill in comments below)
+*******************************************************************************************/
+
+/*
+Dealer Name: SAOA Consulting
+System Name:
+System Number:
+Programmer: Stefan Andersson
+Comments:
+*/
+
+/*******************************************************************************************
+  Compiler Directives
+  (Uncomment and declare compiler directives as needed)
+*******************************************************************************************/
+// #ENABLE_DYNAMIC
+#SYMBOL_NAME "Adder Connection Manager v2.02"
+// #HINT ""
+// #DEFINE_CONSTANT
+// #CATEGORY "" 
+// #PRINT_TO_TRACE
+// #DIGITAL_EXPAND 
+// #ANALOG_SERIAL_EXPAND 
+// #OUTPUT_SHIFT 
+// #HELP_PDF_FILE ""
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+// #ENCODING_ASCII
+// #ENCODING_UTF16
+// #ENCODING_INHERIT_FROM_PARENT
+// #ENCODING_INHERIT_FROM_PROGRAM
+
+#HELP_BEGIN
+Adder Connection Manager
+
+This module is responsible for managing the connection between RX and TX devices in the Adder system. It handles login, device discovery, channel mapping, and switching.
+
+Digital Inputs
+Login = Pulse to initiate login to the Adder AIM server using the configured IP address, port, username, and password.
+Logout = Pulse to log out from the AIM server.
+Debug = Hold high to enable detailed debugging output to the Crestron console.
+
+Puls in this order:
+1. GetDevicesTX
+2. GetChannels
+3. GetDevicesRX
+
+GetDevicesTX = Pulse to manually request an update of all available TX devices. 
+GetChannels = Pulse to manually request an update of all available channels.
+GetDevicesRX = Pulse to manually request an update of all available RX devices.
+
+Poll = Reserved for future use (optional periodic polling if needed).
+Disconnect_All = Pulse to disconnect all RX devices from their current TX sources.
+
+Digital Outputs
+Login_Success = Pulses high when login is successful.
+Login_Failed = Pulses high when login fails.
+
+Analog Parameters
+HTTPS = Set to 1 to enable HTTPS communication with the AIM server, or 0 for HTTP.
+API_Version = Specifies the AIM API version to use in requests.
+AIM_Port = The TCP port used to communicate with the AIM server.
+
+Serial Parameters
+AIM_IP$ = The IP address of the AIM server.
+Username$ = Username for login.
+Password$ = Password for login.
+
+Module Notes
+- This module acts as the central controller for all Adder Room modules.
+- Each Adder Room must register itself using the RegisterRoom command after startup.
+- Room callbacks are automatically created and maintained to allow individual room modules to receive updates when their connection state changes.
+
+#HELP_END
+
+
+
+/*******************************************************************************************
+  Include Libraries
+  (Uncomment and include additional libraries as needed)
+*******************************************************************************************/
+#USER_SIMPLSHARP_LIBRARY "AdderAIM"
+
+/*******************************************************************************************
+  DIGITAL, ANALOG and SERIAL INPUTS and OUTPUTS
+  (Uncomment and declare inputs and outputs as needed)
+*******************************************************************************************/
+DIGITAL_INPUT _SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,Login;
+DIGITAL_INPUT Logout,_SKIP_;
+DIGITAL_INPUT Debug,_SKIP_;
+DIGITAL_INPUT GetDevicesTX;
+DIGITAL_INPUT GetChannels;
+DIGITAL_INPUT GetDevicesRX;
+DIGITAL_INPUT Poll,_SKIP_;
+DIGITAL_INPUT Disconnect_All;
+
+DIGITAL_OUTPUT _SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,_SKIP_,Login_Success;
+
+DIGITAL_OUTPUT Login_Failed,_SKIP_;
+
+
+INTEGER_PARAMETER HTTPS;
+INTEGER_PARAMETER API_Version;
+STRING_PARAMETER AIM_IP[20];
+INTEGER_PARAMETER AIM_Port;
+STRING_PARAMETER Username[100];
+STRING_PARAMETER Password[100];
+
+
+AimManager _aim;
+
+
+#BEGIN_PARAMETER_PROPERTIES HTTPS
+
+   propDefaultValue=1d;
+   propList={ 0d,"No" },{ 1d,"Yes" };
+
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES AIM_IP
+
+   propDefaultValue="127.0.0.1";
+
+#END_PARAMETER_PROPERTIES
+
+
+#BEGIN_PARAMETER_PROPERTIES AIM_Port
+
+   propDefaultValue=4433d;
+
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Username
+
+   propDefaultValue="Username";
+
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Password
+
+   propDefaultValue="Password";
+
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES API_Version
+
+   propDefaultValue=14d;
+
+#END_PARAMETER_PROPERTIES
+
+
+
+PUSH Login{
+	_aim.Login();
+}
+ 
+PUSH Logout{
+	_aim.Logout();
+}
+
+CHANGE Debug{
+	_aim.SetDebugMode(Debug);
+}
+
+PUSH GetDevicesRX{
+	_aim.GetDevicesRx();
+}
+
+PUSH GetDevicesTX{
+	_aim.GetDevicesTx();
+}
+
+PUSH GetChannels{
+	_aim.GetChannels();
+}
+
+PUSH Poll{
+	_aim.GetDevicesTx();
+	WAIT(300)
+	_aim.GetChannels();	
+	WAIT(300)
+	_aim.GetDevicesTx();
+}
+
+PUSH Disconnect_All{
+	_aim.DisconnectAll();
+}
+
+/*******************************************************************************************
+  Main()
+  Uncomment and place one-time startup code here
+  (This code will get called when the system starts up)
+*******************************************************************************************/
+
+Callback Function OnLoginSuccessDel(){
+	Login_Success = 1;
+	Login_Failed = 0;
+}
+
+Callback Function OnLoginFailedDel(){
+	Login_Success = 0;
+	Login_Failed = 1;
+}
+
+
+Function Main()
+{
+	WaitForInitializationComplete();
+
+	_aim.SetIpAddress(AIM_IP);
+    _aim.SetPort(AIM_Port);
+	_aim.SetUsername(Username);
+    _aim.SetPassword(Password);
+	_aim.SetApiVersion(API_Version);
+	_aim.SetUseHttps(HTTPS);
+
+	RegisterDelegate(_aim, OnLoginSuccess, OnLoginSuccessDel);
+	RegisterDelegate(_aim, OnLoginFailed, OnLoginFailedDel);
+    
+	//TRACE("IP: %s\n", AIM_IP);
+	//TRACE("Port: %d\n", AIM_Port);
+	//TRACE("Username: %s\n", Username);
+	//TRACE("Password: %s\n", Password);
+	//TRACE("API: %d\n", API_Version);
+	//TRACE("Use HTTPS: %d\n", HTTPS);
+
+}
+
+

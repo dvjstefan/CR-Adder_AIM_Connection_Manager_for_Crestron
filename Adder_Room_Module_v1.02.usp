@@ -1,0 +1,141 @@
+/*******************************************************************************************
+  SIMPL+ Module Information
+  (Fill in comments below)
+*******************************************************************************************/
+/*
+Dealer Name: SAOA Consulting
+System Name:
+System Number:
+Programmer: Stefan Andersson
+Comments:
+*/
+
+/*******************************************************************************************
+  Compiler Directives
+  (Uncomment and declare compiler directives as needed)
+*******************************************************************************************/
+// #ENABLE_DYNAMIC
+#SYMBOL_NAME "Adder Room(RX) Module v1.02"
+// #HINT ""
+// #DEFINE_CONSTANT
+// #CATEGORY "" 
+// #PRINT_TO_TRACE
+// #DIGITAL_EXPAND 
+// #ANALOG_SERIAL_EXPAND 
+// #OUTPUT_SHIFT 
+// #HELP_PDF_FILE ""
+//#DEFINE_CONSTANT MAX_INPUTS 32
+//#DEFINE_CONSTANT MAX_OUTPUTS 32
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+// #ENCODING_ASCII
+// #ENCODING_UTF16
+// #ENCODING_INHERIT_FROM_PARENT
+// #ENCODING_INHERIT_FROM_PROGRAM
+
+#HELP_BEGIN
+DeviceId = The unique ID of the RX device. You can retrieve this ID after the RX unit has been named and fully configured in the Adder system.
+
+RegisterRoom = Pulse this signal once after the processor starts to register this room (RX) with the Adder Connection Manager module. This step is required to ensure the RX unit is linked to the main module.
+
+DisconnectRoom = Pulse this signal to immediately disconnect this RX device from any currently connected TX source.
+
+RoomIsRegistered = Indicates whether the room has been successfully registered with the Adder Connection Manager module. (1 = Registered, 0 = Not registered)
+
+Active_Source_Name$ = Displays the name of the currently connected TX source. If no source is connected, this will show "No Source".
+
+Source$ = Use this input to specify the name of the TX source you want to connect to this RX device. The name must match exactly with a TX source name from the Adder system.  
+Sending an empty string ("") will disconnect the RX device from its current source.
+
+#HELP_END
+
+
+/*******************************************************************************************
+  Include Libraries
+  (Uncomment and include additional libraries as needed)
+*******************************************************************************************/
+#USER_SIMPLSHARP_LIBRARY "AdderAIM"
+
+/*******************************************************************************************
+  DIGITAL, ANALOG and SERIAL INPUTS and OUTPUTS
+  (Uncomment and declare inputs and outputs as needed)
+*******************************************************************************************/
+DIGITAL_INPUT _SKIP_,_SKIP_, RegisterRoom;
+DIGITAL_INPUT DisconnectRoom; 
+STRING_INPUT _SKIP_,Source$[255];
+
+DIGITAL_OUTPUT _SKIP_,_SKIP_, RoomIsRegistered;
+STRING_OUTPUT _SKIP_,Active_Source_Name$;
+
+
+
+AimManager _aim;
+
+/*******************************************************************************************
+  SOCKETS
+  (Uncomment and define socket definitions as needed)
+*******************************************************************************************/
+// TCP_CLIENT
+// TCP_SERVER
+// UDP_SOCKET
+
+/*******************************************************************************************
+  Parameters
+  (Uncomment and declare parameters as needed)
+*******************************************************************************************/
+// INTEGER_PARAMETER
+// SIGNED_INTEGER_PARAMETER
+// LONG_INTEGER_PARAMETER
+// SIGNED_LONG_INTEGER_PARAMETER
+// STRING_PARAMETER
+
+INTEGER_PARAMETER DeviceId;
+
+/*******************************************************************************************
+  Parameter Properties
+  (Uncomment and declare parameter properties as needed)
+*******************************************************************************************/
+
+#BEGIN_PARAMETER_PROPERTIES DeviceId
+   propDefaultValue = 0d;
+#END_PARAMETER_PROPERTIES
+
+PUSH RegisterRoom{
+	_aim.RegisterRoom(DeviceId);
+}
+
+PUSH DisconnectRoom{
+	_aim.DisconnectSingleRoom(DeviceId);
+}
+
+CHANGE Source${
+	_aim.ConnectChannel(DeviceId, Source$);
+}
+
+
+Callback Function OnChannelNameUpdate(STRING updatedName)
+{
+    Active_Source_Name$ = updatedName;
+}
+
+Callback Function OnRoomRegisteredDel()
+{
+	RoomIsRegistered = 1;
+}
+
+
+/*******************************************************************************************
+  Main()
+  Uncomment and place one-time startup code here
+  (This code will get called when the system starts up)
+*******************************************************************************************/
+
+Function Main()
+{
+    WaitForInitializationComplete();
+
+    RegisterDelegate(_aim, OnChannelNameUpdated, OnChannelNameUpdate);
+	RegisterDelegate(_aim, OnRoomRegisteredSuccess, OnRoomRegisteredDel);
+}
+
